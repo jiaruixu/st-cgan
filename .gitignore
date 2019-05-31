@@ -1,0 +1,7 @@
+ISTD_Dataset/*
+.idea/
+__pycache__/
+datasets/__pycache__/
+transforms/__pycache__/
+test.py
+output/
