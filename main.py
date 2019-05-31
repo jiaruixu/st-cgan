@@ -31,6 +31,7 @@ def parse_args():
     #                     default=3, help='size of the input channels')
     # parser.add_argument('--outputChannelSize', type=int,
     #                     default=3, help='size of the output channels')
+    parser.add_argument('--gpu_ids', type=str, default='0, 1', help='gpu ids: e.g. 0  0,1,2, 0,2. use -1 for CPU')
     parser.add_argument('--lambda1', type=float, default=5, help='lambda1 for G2')
     parser.add_argument('--lambda2', type=float, default=0.1, help='lambda2 for D1')
     parser.add_argument('--lambda3', type=float, default=0.1, help='lambda3 for D2')
@@ -56,6 +57,17 @@ def parse_args():
     opt = parser.parse_args()
     opt.isTrain = True
     print(opt)
+
+    # set gpu ids
+    str_ids = opt.gpu_ids.split(',')
+    opt.gpu_ids = []
+    for str_id in str_ids:
+        id = int(str_id)
+        if id >= 0:
+            opt.gpu_ids.append(id)
+    if len(opt.gpu_ids) > 0:
+        torch.cuda.set_device(opt.gpu_ids[0])
+
     return opt
 
 def getLoader(dataroot, originalSize, imageSize, batchSize=64, workers=4,
@@ -113,7 +125,8 @@ def set_requires_grad(nets, requires_grad=False):
                 param.requires_grad = requires_grad
 
 def main(opt):
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cuda:{}'.format(opt.gpu_ids[0])) if opt.gpu_ids else torch.device('cpu')
     create_exp_dir(opt.output_dir)
     create_exp_dir(os.path.join(opt.output_dir, 'val_results'))
     create_exp_dir(os.path.join(opt.output_dir, 'train_results'))
@@ -141,27 +154,32 @@ def main(opt):
                               split='test',
                               shuffle=False,
                               seed=opt.manualSeed)
-    G1 = generator(3, 1).to(device)
-    G2 = generator(4, 3).to(device)
-    D1 = discriminator(4, 1).to(device)
-    D2 = discriminator(7, 1).to(device)
+    G1 = generator(3, 1)
+    G2 = generator(4, 3)
+    D1 = discriminator(4, 1)
+    D2 = discriminator(7, 1)
 
-    G1.apply(weights_init)
+    init_net(G1, init_type='normal', init_gain=0.2, gpu_ids=opt.gpu_ids)
+    init_net(G2, init_type='normal', init_gain=0.2, gpu_ids=opt.gpu_ids)
+    init_net(D1, init_type='normal', init_gain=0.2, gpu_ids=opt.gpu_ids)
+    init_net(D2, init_type='normal', init_gain=0.2, gpu_ids=opt.gpu_ids)
+
+    # G1.apply(weights_init)
     if opt.netG1 != '':
         G1.load_state_dict(torch.load(opt.netG1))
     print(G1)
 
-    D1.apply(weights_init)
+    # D1.apply(weights_init)
     if opt.netD1 != '':
         D1.load_state_dict(torch.load(opt.netD1))
     print(D1)
 
-    G2.apply(weights_init)
+    # G2.apply(weights_init)
     if opt.netG2 != '':
         G2.load_state_dict(torch.load(opt.netG2))
     print(G2)
 
-    D2.apply(weights_init)
+    # D2.apply(weights_init)
     if opt.netD2 != '':
         D2.load_state_dict(torch.load(opt.netD2))
     print(D2)
@@ -419,10 +437,20 @@ def main(opt):
 
         if epoch % opt.save_epoch_freq == 0:  # cache our model every <save_epoch_freq> epochs
             print('saving the model at the end of epoch %d, iters %d' % (epoch, total_iters))
-            torch.save(G1.state_dict(), '%s/G1_epoch_%d.pth' % (opt.output_dir, epoch))
-            torch.save(D1.state_dict(), '%s/D1_epoch_%d.pth' % (opt.output_dir, epoch))
-            torch.save(G2.state_dict(), '%s/G2_epoch_%d.pth' % (opt.output_dir, epoch))
-            torch.save(D2.state_dict(), '%s/D2_epoch_%d.pth' % (opt.output_dir, epoch))
+            if len(opt.gpu_ids) > 0 and torch.cuda.is_available():
+                torch.save(G1.module.cpu().state_dict(), '%s/G1_epoch_%d.pth' % (opt.output_dir, epoch))
+                torch.save(D1.module.cpu().state_dict(), '%s/D1_epoch_%d.pth' % (opt.output_dir, epoch))
+                torch.save(G2.module.cpu().state_dict(), '%s/G2_epoch_%d.pth' % (opt.output_dir, epoch))
+                torch.save(D2.module.cpu().state_dict(), '%s/D2_epoch_%d.pth' % (opt.output_dir, epoch))
+                G1.cuda(opt.gpu_ids[0])
+                G2.cuda(opt.gpu_ids[0])
+                D1.cuda(opt.gpu_ids[0])
+                D2.cuda(opt.gpu_ids[0])
+            else:
+                torch.save(G1.cpu().state_dict(), '%s/G1_epoch_%d.pth' % (opt.output_dir, epoch))
+                torch.save(D1.cpu().state_dict(), '%s/D1_epoch_%d.pth' % (opt.output_dir, epoch))
+                torch.save(G2.cpu().state_dict(), '%s/G2_epoch_%d.pth' % (opt.output_dir, epoch))
+                torch.save(D2.cpu().state_dict(), '%s/D2_epoch_%d.pth' % (opt.output_dir, epoch))
 
         print('End of epoch %d / %d \t Time Taken: %d sec' % (epoch, opt.niter, time.time() - epoch_start_time))
 
