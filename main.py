@@ -21,7 +21,7 @@ def parse_args():
                         default='ISTD_Dataset/train', help='path to train dataset')
     parser.add_argument('--testroot', required=False,
                         default='ISTD_Dataset/test', help='path to test dataset')
-    parser.add_argument('--batchSize', type=int, default=1, help='input batch size')
+    parser.add_argument('--batchSize', type=int, default=2, help='input batch size')
     parser.add_argument('--valBatchSize', type=int, default=64, help='val. input batch size')
     parser.add_argument('--originalSize', type=int,
                         default=286, help='the height / width of the original input image')
@@ -31,7 +31,7 @@ def parse_args():
     #                     default=3, help='size of the input channels')
     # parser.add_argument('--outputChannelSize', type=int,
     #                     default=3, help='size of the output channels')
-    parser.add_argument('--gpu_ids', type=str, default='0, 1', help='gpu ids: e.g. 0  0,1,2, 0,2. use -1 for CPU')
+    parser.add_argument('--gpu_ids', type=str, default='1, 0', help='gpu ids: e.g. 0  0,1,2, 0,2. use -1 for CPU')
     parser.add_argument('--lambda1', type=float, default=5, help='lambda1 for G2')
     parser.add_argument('--lambda2', type=float, default=0.1, help='lambda2 for D1')
     parser.add_argument('--lambda3', type=float, default=0.1, help='lambda3 for D2')
@@ -65,8 +65,8 @@ def parse_args():
         id = int(str_id)
         if id >= 0:
             opt.gpu_ids.append(id)
-    if len(opt.gpu_ids) > 0:
-        torch.cuda.set_device(opt.gpu_ids[0])
+    # if len(opt.gpu_ids) > 0:
+    #     torch.cuda.set_device(opt.gpu_ids[1])
 
     return opt
 
@@ -125,8 +125,8 @@ def set_requires_grad(nets, requires_grad=False):
                 param.requires_grad = requires_grad
 
 def main(opt):
-    # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    device = torch.device('cuda:{}'.format(opt.gpu_ids[0])) if opt.gpu_ids else torch.device('cpu')
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    # device = torch.device('cuda:{}'.format(opt.gpu_ids[1])) if opt.gpu_ids else torch.device('cpu')
     create_exp_dir(opt.output_dir)
     create_exp_dir(os.path.join(opt.output_dir, 'val_results'))
     create_exp_dir(os.path.join(opt.output_dir, 'train_results'))
@@ -159,10 +159,10 @@ def main(opt):
     D1 = discriminator(4, 1)
     D2 = discriminator(7, 1)
 
-    init_net(G1, init_type='normal', init_gain=0.2, gpu_ids=opt.gpu_ids)
-    init_net(G2, init_type='normal', init_gain=0.2, gpu_ids=opt.gpu_ids)
-    init_net(D1, init_type='normal', init_gain=0.2, gpu_ids=opt.gpu_ids)
-    init_net(D2, init_type='normal', init_gain=0.2, gpu_ids=opt.gpu_ids)
+    G1 = init_net(G1, init_type='normal', init_gain=0.2, gpu_ids=opt.gpu_ids, device=device)
+    G2 = init_net(G2, init_type='normal', init_gain=0.2, gpu_ids=opt.gpu_ids, device=device)
+    D1 = init_net(D1, init_type='normal', init_gain=0.2, gpu_ids=opt.gpu_ids, device=device)
+    D2 = init_net(D2, init_type='normal', init_gain=0.2, gpu_ids=opt.gpu_ids, device=device)
 
     # G1.apply(weights_init)
     if opt.netG1 != '':
@@ -184,10 +184,10 @@ def main(opt):
         D2.load_state_dict(torch.load(opt.netD2))
     print(D2)
 
-    G1.train()
-    D1.train()
-    G2.train()
-    D2.train()
+    G1.module.train()
+    D1.module.train()
+    G2.module.train()
+    D2.module.train()
 
     # model = D1
     # model = model.to(device)
@@ -442,10 +442,10 @@ def main(opt):
                 torch.save(D1.module.cpu().state_dict(), '%s/D1_epoch_%d.pth' % (opt.output_dir, epoch))
                 torch.save(G2.module.cpu().state_dict(), '%s/G2_epoch_%d.pth' % (opt.output_dir, epoch))
                 torch.save(D2.module.cpu().state_dict(), '%s/D2_epoch_%d.pth' % (opt.output_dir, epoch))
-                G1.cuda(opt.gpu_ids[0])
-                G2.cuda(opt.gpu_ids[0])
-                D1.cuda(opt.gpu_ids[0])
-                D2.cuda(opt.gpu_ids[0])
+                G1.cuda(device)
+                G2.cuda(device)
+                D1.cuda(device)
+                D2.cuda(device)
             else:
                 torch.save(G1.cpu().state_dict(), '%s/G1_epoch_%d.pth' % (opt.output_dir, epoch))
                 torch.save(D1.cpu().state_dict(), '%s/D1_epoch_%d.pth' % (opt.output_dir, epoch))

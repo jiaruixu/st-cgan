@@ -1,4 +1,5 @@
 import torch
+from torch.nn import init
 import os
 from sklearn.metrics import balanced_accuracy_score, mean_squared_error
 from skimage.color import rgb2lab
@@ -35,25 +36,25 @@ def init_weights(net, init_type='normal', init_gain=0.2):
         classname = m.__class__.__name__
         if hasattr(m, 'weight') and (classname.find('Conv') != -1 or classname.find('Linear') != -1):
             if init_type == 'normal':
-                torch.nn.normal_(m.weight.data, 0.0, init_gain)
+                init.normal_(m.weight.data, 0.0, init_gain)
             elif init_type == 'xavier':
-                torch.nn.xavier_normal_(m.weight.data, gain=init_gain)
+                init.xavier_normal_(m.weight.data, gain=init_gain)
             elif init_type == 'kaiming':
-                torch.nn.kaiming_normal_(m.weight.data, a=0, mode='fan_in')
+                init.kaiming_normal_(m.weight.data, a=0, mode='fan_in')
             elif init_type == 'orthogonal':
-                torch.nn.orthogonal_(m.weight.data, gain=init_gain)
+                init.orthogonal_(m.weight.data, gain=init_gain)
             else:
                 raise NotImplementedError('initialization method [%s] is not implemented' % init_type)
             if hasattr(m, 'bias') and m.bias is not None:
-                torch.nn.constant_(m.bias.data, 0.0)
+                init.constant_(m.bias.data, 0.0)
         elif classname.find('BatchNorm2d') != -1:  # BatchNorm Layer's weight is not a matrix; only normal distribution applies.
-            torch.nn.normal_(m.weight.data, 0.0, init_gain)
-            torch.nn.constant_(m.bias.data, 0.0)
+            init.normal_(m.weight.data, 0.0, init_gain)
+            init.constant_(m.bias.data, 0.0)
 
     print('initialize network with %s' % init_type)
     net.apply(init_func)  # apply the initialization function <init_func>
 
-def init_net(net, init_type='normal', init_gain=0.2, gpu_ids=[]):
+def init_net(net, init_type='normal', init_gain=0.2, gpu_ids=[], device='cpu'):
     """Initialize a network: 1. register CPU/GPU device (with multi-GPU support); 2. initialize the network weights
     Parameters:
         net (network)      -- the network to be initialized
@@ -65,8 +66,9 @@ def init_net(net, init_type='normal', init_gain=0.2, gpu_ids=[]):
     """
     if len(gpu_ids) > 0:
         assert(torch.cuda.is_available())
-        net.to(gpu_ids[0])
-        net = torch.nn.DataParallel(net, gpu_ids)  # multi-GPUs
+        print("Let's use", torch.cuda.device_count(), "GPUs!")
+        net = torch.nn.DataParallel(net)  # multi-GPUs
+        net.to(device)
     init_weights(net, init_type, init_gain=init_gain)
     return net
 
