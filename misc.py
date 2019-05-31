@@ -1,6 +1,5 @@
 import torch
-import os 
-import sys
+import os
 from sklearn.metrics import balanced_accuracy_score, mean_squared_error
 from skimage.color import rgb2lab
 
