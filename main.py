@@ -47,8 +47,8 @@ def parse_args():
     parser.add_argument('--netD1', default='', help="path to netD1 (to continue training)")
     parser.add_argument('--netG2', default='', help="path to netG2 (to continue training)")
     parser.add_argument('--netD2', default='', help="path to netD2 (to continue training)")
-    parser.add_argument('--workers', type=int, help='number of data loading workers', default=2)
-    parser.add_argument('--save_epoch_freq', type=int, default=400,
+    parser.add_argument('--workers', type=int, help='number of data loading workers', default=4)
+    parser.add_argument('--save_epoch_freq', type=int, default=20,
                         help='frequency of saving checkpoints at the end of epochs')
     parser.add_argument('--display_freq', type=int, default=400, help='frequency of showing training results on screen')
     parser.add_argument('--print_freq', type=int, default=10, help='frequency of showing training results on console')
@@ -66,8 +66,8 @@ def parse_args():
         id = int(str_id)
         if id >= 0:
             opt.gpu_ids.append(id)
-    # if len(opt.gpu_ids) > 0:
-    #     torch.cuda.set_device(opt.gpu_ids[1])
+    if len(opt.gpu_ids) > 0 and torch.cuda.is_available():
+        torch.cuda.set_device(opt.gpu_ids[0])
 
     return opt
 
@@ -126,8 +126,8 @@ def set_requires_grad(nets, requires_grad=False):
                 param.requires_grad = requires_grad
 
 def main(opt):
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    # device = torch.device('cuda:{}'.format(opt.gpu_ids[1])) if opt.gpu_ids else torch.device('cpu')
+    # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cuda:{}'.format(opt.gpu_ids[1])) if opt.gpu_ids else torch.device('cpu')
     create_exp_dir(opt.output_dir)
     create_exp_dir(os.path.join(opt.output_dir, 'val_results'))
     create_exp_dir(os.path.join(opt.output_dir, 'train_results'))
@@ -160,10 +160,10 @@ def main(opt):
     D1 = discriminator(4, 1)
     D2 = discriminator(7, 1)
 
-    G1 = init_net(G1, init_type='normal', init_gain=0.2, gpu_ids=opt.gpu_ids, device=device)
-    G2 = init_net(G2, init_type='normal', init_gain=0.2, gpu_ids=opt.gpu_ids, device=device)
-    D1 = init_net(D1, init_type='normal', init_gain=0.2, gpu_ids=opt.gpu_ids, device=device)
-    D2 = init_net(D2, init_type='normal', init_gain=0.2, gpu_ids=opt.gpu_ids, device=device)
+    G1 = init_net(G1, init_type='normal', init_gain=0.2, gpu_ids=opt.gpu_ids)
+    G2 = init_net(G2, init_type='normal', init_gain=0.2, gpu_ids=opt.gpu_ids)
+    D1 = init_net(D1, init_type='normal', init_gain=0.2, gpu_ids=opt.gpu_ids)
+    D2 = init_net(D2, init_type='normal', init_gain=0.2, gpu_ids=opt.gpu_ids)
 
     # G1.apply(weights_init)
     if opt.netG1 != '':
@@ -196,9 +196,6 @@ def main(opt):
     #
     # summary(model, input_size=(4, 256, 256))
 
-    # train_A = torch.FloatTensor(opt.batchSize, 3, opt.imageSize, opt.imageSize)
-    # train_B = torch.FloatTensor(opt.batchSize, 1, opt.imageSize, opt.imageSize)
-    # train_C = torch.FloatTensor(opt.batchSize, 3, opt.imageSize, opt.imageSize)
     # val_A = torch.FloatTensor(opt.valBatchSize, 3, opt.imageSize, opt.imageSize)
     # val_B = torch.FloatTensor(opt.valBatchSize, 1, opt.imageSize, opt.imageSize)
     # val_C = torch.FloatTensor(opt.valBatchSize, 3, opt.imageSize, opt.imageSize)
@@ -217,20 +214,12 @@ def main(opt):
     # fake_B_pool = ImagePool(opt.poolSize)
     # fake_C_pool = ImagePool(opt.poolSize)
 
-    criterionGAN = nn.BCEWithLogitsLoss().to(device)
-    criterionL1 = nn.L1Loss().to(device)
-    # train_A = train_A.to(device)
-    # train_B = train_B.to(device)
-    # train_C = train_C.to(device)
+    criterionGAN = nn.BCEWithLogitsLoss().to(opt.gpu_ids[0])
+    criterionL1 = nn.L1Loss().to(opt.gpu_ids[0])
     # val_A = val_A.to(device)
     # val_B = val_B.to(device)
     # val_C = val_C.to(device)
     # label_d = label_d.to(device)
-
-    # train_A = Variable(train_A)
-    # train_B = Variable(train_B)
-    # train_C = Variable(train_C)
-    # label_d = Variable(label_d, requires_grad=True)
 
     # get randomly sampled validation images and save it
     val_iter = iter(valDataloader)
@@ -286,10 +275,6 @@ def main(opt):
             real_A = Variable(data['imgA'].type(Tensor))
             real_B = Variable(data['imgB'].type(Tensor))
             real_C = Variable(data['imgC'].type(Tensor))
-            # NOTE paired samples
-            # train_A.data.resize_as_(train_A_cpu).copy_(train_A_cpu)
-            # train_B.data.resize_as_(train_B_cpu).copy_(train_B_cpu)
-            # train_C.data.resize_as_(train_C_cpu).copy_(train_C_cpu)
 
             # compute fake images: G1(A), G2(A, fake_B)
             fake_B = G1(real_A)
@@ -312,9 +297,9 @@ def main(opt):
 
             # label_d = torch.tensor(fake_label).expand_as(pred_fake).to(device)
             # label_d_fake = torch.tensor(fake_label).expand_as(pred_fake).to(device)
-            label_d_fake = Variable(Tensor(np.zeros((pred_fake.size()))), requires_grad=False)
+            label_d_fake = Variable(Tensor(np.zeros(pred_fake.size())), requires_grad=False)
             # label_d_real = torch.tensor(real_label).expand_as(pred_fake).to(device)
-            label_d_real = Variable(Tensor(np.ones((pred_fake.size()))), requires_grad=False)
+            label_d_real = Variable(Tensor(np.ones(pred_fake.size())), requires_grad=False)
             # label_d.fill_(fake_label)
             loss_D1_fake = criterionGAN(pred_fake, label_d_fake)
             ## Real
@@ -405,20 +390,27 @@ def main(opt):
                 visuals = {'real_A': real_A,
                             'fake_B': fake_B, 'real_B': real_B,
                             'fake_C':fake_C, 'real_C':real_C}
-                batch_vis = torch.FloatTensor(len(visuals.items()), real_A.size(1), real_A.size(2), real_A.size(3)).fill_(0)
+                # batch_vis = torch.FloatTensor(len(visuals.items()) * opt.batchSize, *real_A.size()[1:4]).fill_(0)
+                batch_vis = Tensor(np.zeros((len(visuals.items()) * opt.batchSize, *real_A.size()[1:4])))
                 idx = 0
-                for label, image in visuals.items():
-                    batch_vis[idx, :, :, :].copy_(image.data.squeeze(0))
-                    idx = idx + 1
+                for i in range(opt.batchSize):
+                    for label, image in visuals.items():
+                        # if label == 'fake_B':
+                        #     image.data[i][image.data[i] > 0] = 1.0
+                        #     image.data[i][image.data[i] <= 0] = -1.0
+                        batch_vis[idx, :, :, :].copy_(image.data[i])
+                        idx = idx + 1
                 vutils.save_image(batch_vis, '%s/train_results/generated_epoch_%06d_iter%06d_B.png' % \
-                                      (opt.output_dir, epoch, total_iters), normalize=True)
+                                      (opt.output_dir, epoch, total_iters), nrow=len(visuals.items()), normalize=True)
                     # image_numpy = tensor2im(image)
                     # image_pil = Image.fromarray(image_numpy)
                     # image_pil.save(os.path.join(opt.output_dir, 'train_results', 'epoch%.3d_%s.png' % (epoch, label)))
 
             if total_iters % opt.evalIter == 0:   # evaluation
-                val_batch_output_B = torch.FloatTensor(val_A.size(0), 1, val_A.size(2), val_A.size(3)).fill_(0)
-                val_batch_output_C = torch.FloatTensor(val_A.size()).fill_(0)
+                # val_batch_output_B = torch.FloatTensor(val_A.size(0), 1, *val_A.size()[2:4]).fill_(0)
+                val_batch_output_B = Tensor(np.zeros((val_A.size(0), 1, *val_A.size()[2:4])))
+                # val_batch_output_C = torch.FloatTensor(val_A.size()).fill_(0)
+                val_batch_output_C = Tensor(np.zeros(val_A.size()))
                 BER = []
                 RMSE = []
                 for idx in range(val_A.size(0)):
@@ -430,7 +422,10 @@ def main(opt):
                     fake_B = G1(val_inputv)
                     fake_C = G2(torch.cat([single_img, fake_B], 1))
                     # Balance error rate
-                    BER.append(calc_BER(fake_B.data, val_B_single_img))
+                    fake_B_label = Tensor(np.zeros(fake_B.size())).copy_(fake_B)
+                    fake_B_label[fake_B_label > 0] = 1.0
+                    fake_B_label[fake_B_label <= 0] = -1.0
+                    BER.append(calc_BER(fake_B_label.data, val_B_single_img))
                     # RMSE
                     RMSE.append(calc_RMSE(fake_C.data, val_C_single_img))
                     val_batch_output_B[idx, :, :, :].copy_(fake_B.data.squeeze(0))
@@ -450,10 +445,10 @@ def main(opt):
                 torch.save(D1.module.cpu().state_dict(), '%s/D1_epoch_%d.pth' % (opt.output_dir, epoch))
                 torch.save(G2.module.cpu().state_dict(), '%s/G2_epoch_%d.pth' % (opt.output_dir, epoch))
                 torch.save(D2.module.cpu().state_dict(), '%s/D2_epoch_%d.pth' % (opt.output_dir, epoch))
-                G1.cuda(device)
-                G2.cuda(device)
-                D1.cuda(device)
-                D2.cuda(device)
+                G1.cuda(opt.gpu_ids[0])
+                G2.cuda(opt.gpu_ids[0])
+                D1.cuda(opt.gpu_ids[0])
+                D2.cuda(opt.gpu_ids[0])
             else:
                 torch.save(G1.cpu().state_dict(), '%s/G1_epoch_%d.pth' % (opt.output_dir, epoch))
                 torch.save(D1.cpu().state_dict(), '%s/D1_epoch_%d.pth' % (opt.output_dir, epoch))

@@ -34,7 +34,7 @@ class ToTensor(object):
     picA, picB, picC = imgs['imgA'], imgs['imgB'], imgs['imgC']
     pics = [picA, picB, picC]
     output = []
-    for pic in pics: 
+    for pic in pics:
       if isinstance(pic, np.ndarray):
         # handle numpy array
         img = torch.from_numpy(pic.transpose((2, 0, 1)))
