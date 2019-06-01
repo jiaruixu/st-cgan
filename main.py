@@ -2,6 +2,7 @@ from __future__ import print_function
 import time
 import argparse
 import random
+import numpy as np
 # from PIL import Image
 # from torchsummary import summary
 # import torch
@@ -184,11 +185,12 @@ def main(opt):
         D2.load_state_dict(torch.load(opt.netD2))
     print(D2)
 
-    G1.module.train()
-    D1.module.train()
-    G2.module.train()
-    D2.module.train()
+    G1.train()
+    D1.train()
+    G2.train()
+    D2.train()
 
+    Tensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
     # model = D1
     # model = model.to(device)
     #
@@ -197,14 +199,14 @@ def main(opt):
     # train_A = torch.FloatTensor(opt.batchSize, 3, opt.imageSize, opt.imageSize)
     # train_B = torch.FloatTensor(opt.batchSize, 1, opt.imageSize, opt.imageSize)
     # train_C = torch.FloatTensor(opt.batchSize, 3, opt.imageSize, opt.imageSize)
-    val_A = torch.FloatTensor(opt.valBatchSize, 3, opt.imageSize, opt.imageSize)
-    val_B = torch.FloatTensor(opt.valBatchSize, 1, opt.imageSize, opt.imageSize)
-    val_C = torch.FloatTensor(opt.valBatchSize, 3, opt.imageSize, opt.imageSize)
+    # val_A = torch.FloatTensor(opt.valBatchSize, 3, opt.imageSize, opt.imageSize)
+    # val_B = torch.FloatTensor(opt.valBatchSize, 1, opt.imageSize, opt.imageSize)
+    # val_C = torch.FloatTensor(opt.valBatchSize, 3, opt.imageSize, opt.imageSize)
     # label_d = torch.FloatTensor(opt.batchSize)
     # NOTE: size of 2D output maps in the discriminator
     # sizePatchGAN = 8
-    real_label = 1.0
-    fake_label = 0.0
+    # real_label = 1.0
+    # fake_label = 0.0
     # label_d = torch.tensor(real_label)
     # label_d = torch.FloatTensor(opt.batchSize, 1, sizePatchGAN, sizePatchGAN)
     # label_d = torch.zeros(opt.batchSize, 1, sizePatchGAN, sizePatchGAN)
@@ -212,17 +214,17 @@ def main(opt):
     # label_d_real = torch.tensor(real_label).expand_as(pred_real).to(device)
 
     # create image buffer to store previously generated images
-    fake_B_pool = ImagePool(opt.poolSize)
-    fake_C_pool = ImagePool(opt.poolSize)
+    # fake_B_pool = ImagePool(opt.poolSize)
+    # fake_C_pool = ImagePool(opt.poolSize)
 
     criterionGAN = nn.BCEWithLogitsLoss().to(device)
     criterionL1 = nn.L1Loss().to(device)
     # train_A = train_A.to(device)
     # train_B = train_B.to(device)
     # train_C = train_C.to(device)
-    val_A = val_A.to(device)
-    val_B = val_B.to(device)
-    val_C = val_C.to(device)
+    # val_A = val_A.to(device)
+    # val_B = val_B.to(device)
+    # val_C = val_C.to(device)
     # label_d = label_d.to(device)
 
     # train_A = Variable(train_A)
@@ -233,11 +235,14 @@ def main(opt):
     # get randomly sampled validation images and save it
     val_iter = iter(valDataloader)
     val_cpu = val_iter.next()
-    val_A_cpu, val_B_cpu, val_C_cpu = val_cpu['imgA'], val_cpu['imgB'], val_cpu['imgC']
-    val_A_cpu, val_B_cpu, val_C_cpu = val_A_cpu.to(device), val_B_cpu.to(device), val_C_cpu.to(device)
-    val_A.resize_as_(val_A_cpu).copy_(val_A_cpu)
-    val_B.resize_as_(val_B_cpu).copy_(val_B_cpu)
-    val_C.resize_as_(val_C_cpu).copy_(val_C_cpu)
+    # val_A_cpu, val_B_cpu, val_C_cpu = val_cpu['imgA'], val_cpu['imgB'], val_cpu['imgC']
+    # val_A_cpu, val_B_cpu, val_C_cpu = val_A_cpu.to(device), val_B_cpu.to(device), val_C_cpu.to(device)
+    # val_A.resize_as_(val_A_cpu).copy_(val_A_cpu)
+    # val_B.resize_as_(val_B_cpu).copy_(val_B_cpu)
+    # val_C.resize_as_(val_C_cpu).copy_(val_C_cpu)
+    val_A = Variable(val_cpu['imgA'].type(Tensor))
+    val_B = Variable(val_cpu['imgB'].type(Tensor))
+    val_C = Variable(val_cpu['imgC'].type(Tensor))
     vutils.save_image(val_A, '%s/val_results/real_A.png' % opt.output_dir, normalize=True)
     vutils.save_image(val_B, '%s/val_results/real_B.png' % opt.output_dir, normalize=True)
     vutils.save_image(val_C, '%s/val_results/real_C.png' % opt.output_dir, normalize=True)
@@ -276,10 +281,11 @@ def main(opt):
             total_iters += 1
             epoch_iter += 1
 
-            imgA_cpu, imgB_cpu, imgC_cpu = data['imgA'], data['imgB'], data['imgC']
-            batch_size = imgA_cpu.size(0)
-
-            real_A, real_B, real_C = imgA_cpu.to(device), imgB_cpu.to(device), imgC_cpu.to(device)
+            # imgA_cpu, imgB_cpu, imgC_cpu = data['imgA'], data['imgB'], data['imgC']
+            # real_A, real_B, real_C = imgA_cpu.to(device), imgB_cpu.to(device), imgC_cpu.to(device)
+            real_A = Variable(data['imgA'].type(Tensor))
+            real_B = Variable(data['imgB'].type(Tensor))
+            real_C = Variable(data['imgC'].type(Tensor))
             # NOTE paired samples
             # train_A.data.resize_as_(train_A_cpu).copy_(train_A_cpu)
             # train_B.data.resize_as_(train_B_cpu).copy_(train_B_cpu)
@@ -287,9 +293,9 @@ def main(opt):
 
             # compute fake images: G1(A), G2(A, fake_B)
             fake_B = G1(real_A)
-            fake_B = fake_B_pool.query(fake_B)
+            # fake_B = fake_B_pool.query(fake_B)
             fake_C = G2(torch.cat((real_A, fake_B), 1))
-            fake_C = fake_C_pool.query(fake_C)
+            # fake_C = fake_C_pool.query(fake_C)
 
             # update D1, D2
             set_requires_grad([D1, D2], True)  # enable backprop for D1, D2
@@ -305,8 +311,10 @@ def main(opt):
             pred_fake = D1(fake_AB.detach())
 
             # label_d = torch.tensor(fake_label).expand_as(pred_fake).to(device)
-            label_d_fake = torch.tensor(fake_label).expand_as(pred_fake).to(device)
-            label_d_real = torch.tensor(real_label).expand_as(pred_fake).to(device)
+            # label_d_fake = torch.tensor(fake_label).expand_as(pred_fake).to(device)
+            label_d_fake = Variable(Tensor(np.zeros((pred_fake.size()))), requires_grad=False)
+            # label_d_real = torch.tensor(real_label).expand_as(pred_fake).to(device)
+            label_d_real = Variable(Tensor(np.ones((pred_fake.size()))), requires_grad=False)
             # label_d.fill_(fake_label)
             loss_D1_fake = criterionGAN(pred_fake, label_d_fake)
             ## Real
@@ -316,7 +324,7 @@ def main(opt):
             # label_d.fill_(real_label)
             loss_D1_real = criterionGAN(pred_real, label_d_real)
             ## combine loss and calculate gradients
-            loss_D1 = (loss_D1_fake + loss_D1_real) * 0.5
+            # loss_D1 = (loss_D1_fake + loss_D1_real) * 0.5
             # torch.autograd.set_detect_anomaly(True)
             # loss_D1.backward(retain_graph=True)
 
@@ -332,11 +340,11 @@ def main(opt):
             # label_d = torch.tensor(real_label).expand_as(pred_real2).to(device)
             loss_D2_real = criterionGAN(pred_real2, label_d_real)
             ## combine loss and calculate gradients
-            loss_D2 = (loss_D2_fake + loss_D2_real) * 0.5
+            # loss_D2 = (loss_D2_fake + loss_D2_real) * 0.5
             # loss_D2.backward(retain_graph=True)
 
-            loss_D = opt.lambda2 * loss_D1 + opt.lambda3 * loss_D2
-            loss_D.backward(retain_graph=True)
+            loss_D = opt.lambda2 * (loss_D1_fake + loss_D1_real) + opt.lambda3 * (loss_D2_fake + loss_D2_real)
+            loss_D.backward()
 
             # update D's weights
             # optimizerD1.step()
@@ -355,29 +363,29 @@ def main(opt):
             # calculate graidents for G1
             # First, G(A) should fake the discriminator
             fake_AB = torch.cat((real_A, fake_B), 1)
-            pred_fake = D1(fake_AB)
+            pred_fake = D1(fake_AB.detach())
             # label_d = torch.tensor(real_label).expand_as(pred_fake).to(device)
-            loss_G1_GAN = criterionGAN(pred_fake, label_d_real) * opt.lambda2
+            loss_G1_GAN = criterionGAN(pred_fake, label_d_real)
             # Second, G(A) = B
             loss_G1_L1 = criterionL1(fake_B, real_B)
             # combine loss and calculate gradients
-            loss_G1 = loss_G1_GAN + loss_G1_L1
+            # loss_G1 = loss_G1_GAN + loss_G1_L1
             # loss_G1.backward(retain_graph=True)
 
             # calculate graidents for G2
             # First, G(A) should fake the discriminator
             fake_ABC = torch.cat((real_A, fake_B, fake_C), 1)
-            pred_fake = D2(fake_ABC)
+            pred_fake = D2(fake_ABC.detach())
             # label_d = torch.tensor(real_label).expand_as(pred_fake).to(device)
-            loss_G2_GAN = criterionGAN(pred_fake, label_d_real) * opt.lambda3
+            loss_G2_GAN = criterionGAN(pred_fake, label_d_real)
             # Second, G(A) = B
-            loss_G2_L1 = criterionL1(fake_C, real_C) * opt.lambda1
+            loss_G2_L1 = criterionL1(fake_C, real_C)
             # combine loss and calculate gradients
-            loss_G2 = loss_G2_GAN + loss_G2_L1
+            # loss_G2 = loss_G2_GAN + loss_G2_L1
             # loss_G2.backward(retain_graph=True)
 
-            loss_G = loss_G1 + loss_G2
-            loss_G.backward(retain_graph=True)
+            loss_G = loss_G1_GAN + loss_G1_L1 * opt.lambda2 + loss_G2_GAN * opt.lambda3 + loss_G2_L1 * opt.lambda1
+            loss_G.backward()
 
             # udpate G's weights
             # optimizerG1.step()
