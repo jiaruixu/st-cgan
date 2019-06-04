@@ -235,8 +235,6 @@ def main(opt):
             total_iters += 1
             epoch_iter += 1
 
-            # imgA_cpu, imgB_cpu, imgC_cpu = data['imgA'], data['imgB'], data['imgC']
-            # real_A, real_B, real_C = imgA_cpu.to(device), imgB_cpu.to(device), imgC_cpu.to(device)
             real_A = Variable(data['imgA'].type(Tensor))
             real_B = Variable(data['imgB'].type(Tensor))
             real_C = Variable(data['imgC'].type(Tensor))
