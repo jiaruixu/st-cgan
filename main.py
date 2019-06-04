@@ -32,7 +32,7 @@ def parse_args():
     #                     default=3, help='size of the input channels')
     # parser.add_argument('--outputChannelSize', type=int,
     #                     default=3, help='size of the output channels')
-    parser.add_argument('--gpu_ids', type=str, default='-1', help='gpu ids: e.g. 0  0,1,2, 0,2. use -1 for CPU')
+    parser.add_argument('--gpu_ids', type=str, default='0,1', help='gpu ids: e.g. 0  0,1,2, 0,2. use -1 for CPU')
     parser.add_argument('--lambda1', type=float, default=5, help='lambda1 for G2')
     parser.add_argument('--lambda2', type=float, default=0.1, help='lambda2 for D1')
     parser.add_argument('--lambda3', type=float, default=0.1, help='lambda3 for D2')
@@ -48,11 +48,11 @@ def parse_args():
     parser.add_argument('--netG2', default='', help="path to netG2 (to continue training)")
     parser.add_argument('--netD2', default='', help="path to netD2 (to continue training)")
     parser.add_argument('--workers', type=int, help='number of data loading workers', default=4)
-    parser.add_argument('--save_epoch_freq', type=int, default=20,
+    parser.add_argument('--save_epoch_freq', type=int, default=400,
                         help='frequency of saving checkpoints at the end of epochs')
-    parser.add_argument('--display_freq', type=int, default=400, help='frequency of showing training results on screen')
+    parser.add_argument('--display_freq', type=int, default=800, help='frequency of showing training results on screen')
     parser.add_argument('--print_freq', type=int, default=10, help='frequency of showing training results on console')
-    parser.add_argument('--evalIter', type=int, default=400,
+    parser.add_argument('--evalIter', type=int, default=800,
                         help='interval for evauating(generating) images from testDataroot')
     parser.add_argument('--output_dir', default='./output', help='folder to output images and model checkpoints')
     opt = parser.parse_args()
