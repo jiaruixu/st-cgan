@@ -31,7 +31,7 @@ def parse_args():
     #                     default=3, help='size of the input channels')
     # parser.add_argument('--outputChannelSize', type=int,
     #                     default=3, help='size of the output channels')
-    parser.add_argument('--gpu_ids', type=str, default='-1', help='gpu ids: e.g. 0  0,1,2, 0,2. use -1 for CPU')
+    parser.add_argument('--gpu_ids', type=str, default='0,1', help='gpu ids: e.g. 0  0,1,2, 0,2. use -1 for CPU')
     parser.add_argument('--lambda1', type=float, default=5, help='lambda1 for G2')
     parser.add_argument('--lambda2', type=float, default=0.1, help='lambda2 for D1')
     parser.add_argument('--lambda3', type=float, default=0.1, help='lambda3 for D2')
