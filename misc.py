@@ -3,6 +3,8 @@ from torch.nn import init
 import os
 from sklearn.metrics import balanced_accuracy_score, mean_squared_error
 from skimage.color import rgb2lab
+import transforms.ISTD_transforms as transforms
+from datasets.data_loader import ISTD as commonDataset
 
 def create_exp_dir(exp):
   try:
@@ -12,6 +14,38 @@ def create_exp_dir(exp):
     pass
   return True
 
+def getLoader(dataroot, originalSize, imageSize, batchSize=64, workers=4,
+              mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5), split='train', shuffle=True, seed=None):
+
+  #import pdb; pdb.set_trace()
+  if split == 'train':
+    dataset = commonDataset(dataroot=dataroot,
+                            transform=transforms.Compose([
+                              transforms.Scale(originalSize),
+                              transforms.RandomCrop(imageSize),
+                              transforms.RandomHorizontalFlip(),
+                              transforms.ToTensor(),
+                              transforms.Normalize(mean, std),
+                            ]),
+                            split=split,
+                            seed=seed)
+  else:
+    dataset = commonDataset(dataroot=dataroot,
+                            transform=transforms.Compose([
+                              transforms.Scale(originalSize),
+                              transforms.CenterCrop(imageSize),
+                              transforms.ToTensor(),
+                              transforms.Normalize(mean, std),
+                             ]),
+                            split=split,
+                            seed=seed)
+
+  assert dataset
+  dataloader = torch.utils.data.DataLoader(dataset,
+                                           batch_size=batchSize,
+                                           shuffle=shuffle,
+                                           num_workers=int(workers))
+  return dataloader
 
 # def weights_init(m):
 #   classname = m.__class__.__name__
